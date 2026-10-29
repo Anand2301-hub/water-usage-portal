@@ -1,0 +1,10 @@
+const r = require('express').Router();
+const c = require('../controllers/adminController');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { validate, idRule } = require('../middleware/validateRequest');
+r.use(protect, adminOnly);
+r.get('/dashboard', c.dashboard);
+r.get('/users', c.users);
+r.delete('/users/:id', idRule, validate, c.deleteUser);
+r.get('/usage', c.usage);
+module.exports = r;

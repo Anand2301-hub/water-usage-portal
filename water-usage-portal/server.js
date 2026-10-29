@@ -1,0 +1,24 @@
+const express = require('express'), path = require('path'), helmet = require('helmet'), morgan = require('morgan');
+const cookieParser = require('cookie-parser'), rateLimit = require('express-rate-limit'), mongoSanitize = require('express-mongo-sanitize');
+const connectDB = require('./config/db');
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const app = express();
+const cdn = 'https://cdn.jsdelivr.net';
+app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", cdn], styleSrc: ["'self'", "'unsafe-inline'", cdn], fontSrc: ["'self'", cdn], imgSrc: ["'self'", 'data:'], upgradeInsecureRequests: null } } }));
+app.use(morgan('dev'));
+app.use(express.json({ limit: '10kb' }));
+app.use(cookieParser());
+app.use(mongoSanitize());
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: { success: false, message: 'Too many requests. Try again later.' } }));
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/usage', require('./routes/usageRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
+app.use('/api/ai', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { success: false, message: 'AI limit reached. Try again later.' } }), require('./routes/aiRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(notFound);
+app.use(errorHandler);
+const port = process.env.PORT || 3000;
+connectDB().then(() => app.listen(port, () => console.log('Server running on http://localhost:' + port)))
+  .catch((e) => { console.error('Database connection failed:', e.message, '\nCheck MONGODB_URI, password and Atlas Network Access.'); process.exit(1); });
+module.exports = app;
